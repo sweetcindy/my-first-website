@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>圣诞快乐 ❤️</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: "Microsoft YaHei", sans-serif;
+            touch-action: none;
+        }
+        
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        .text-container {
+            position: absolute;
+            z-index: 2;
+            text-align: center;
+            color: #fff;
+            opacity: 0;
+            transform: scale(0.8) translateY(20px);
+            transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+            padding: 0 20px;
+        }
+        
+        .text-container.show {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+        
+        .christmas-text {
+            font-size: 18px;
+            line-height: 1.8;
+            text-shadow: 0 0 10px #ff69b4, 0 0 20px #ff69b4;
+            color: #fff;
+        }
+        
+        .hint {
+            position: absolute;
+            bottom: 30px;
+            color: rgba(255,255,255,0.6);
+            font-size: 14px;
+            z-index: 2;
+            transition: opacity 0.5s;
+        }
+        
+        .hint.hide {
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div class="text-container">
+        <p class="christmas-text">宝宝,圣诞快乐呀!<br>今年有你的陪伴,日子过得美美的.<br>亲一口,么么哒❤️</p>
+    </div>
+    <div class="hint">点击屏幕点亮惊喜 ✨</div>
+
+    <script>
+        // 获取画布和上下文
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const textContainer = document.querySelector('.text-container');
+        const hint = document.querySelector('.hint');
+        
+        // 适配手机屏幕
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // 粒子类
+        class Particle {
+            constructor(x, y, isStar = false, isTrunk = false) {
+                // 圣诞树形状的初始位置
+                this.baseX = x;
+                this.baseY = y;
+                this.x = x;
+                this.y = y;
+                this.isStar = isStar;
+                this.isTrunk = isTrunk;
+                
+                // 尺寸调整：星星更大，树冠粒子适中，树干稍粗
+                if (this.isStar) {
+                    this.size = 12; // 树顶星星尺寸翻倍
+                } else if (this.isTrunk) {
+                    this.size = Math.random() * 5 + 3; // 树干粒子更粗
+                } else {
+                    this.size = Math.random() * 4 + 2; // 树冠粒子更大
+                }
+                
+                this.speed = Math.random() * 0.5 + 0.2;
+                this.angle = Math.random() * Math.PI * 2;
+                
+                // 颜色设置：星星金色，树冠圣诞绿，树干棕色
+                if (this.isStar) {
+                    this.color = '#FFD700'; // 金色星星
+                    this.glowColor = '#FFFF99'; // 星星外发光颜色
+                } else if (this.isTrunk) {
+                    this.color = '#8B4513'; // 树干棕色
+                    this.glowColor = '#A0522D'; // 树干外发光颜色
+                } else {
+                    this.color = `hsl(${Math.random() * 20 + 80}, 100%, ${Math.random() * 20 + 60}%)`; // 圣诞绿系
+                    this.glowColor = `hsl(${Math.random() * 20 + 80}, 100%, 80%)`; // 树冠外发光颜色
+                }
+                
+                // 动画参数
+                this.layer = Math.floor(Math.random() * 8);
+                this.isClickExplode = false;
+                this.explodeSpeed = 0;
+            }
+            
+            // 更新粒子位置
+            update() {
+                if (this.isClickExplode) {
+                    // 点击后爆炸效果
+                    this.x += Math.cos(this.angle) * this.explodeSpeed;
+                    this.y += Math.sin(this.angle) * this.explodeSpeed;
+                    this.explodeSpeed *= 0.98;
+                    this.size *= 0.99;
+                } else {
+                    // 圣诞树呼吸效果（星星效果更明显）
+                    const wobble = Math.sin(Date.now() * 0.001 + this.layer) * (this.isStar ? 5 : 3);
+                    this.x = this.baseX + wobble;
+                    this.y = this.baseY;
+                }
+            }
+            
+            // 绘制粒子（添加外发光效果）
+            draw() {
+                ctx.save();
+                
+                // 绘制外发光
+                ctx.shadowBlur = this.isStar ? 15 : 8; // 星星发光更强烈
+                ctx.shadowColor = this.glowColor;
+                
+                ctx.beginPath();
+                if (this.isStar) {
+                    // 绘制五角星（替代圆形，更像星星）
+                    drawStar(this.x, this.y, this.size, this.size * 0.4, 5);
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+                } else {
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+                }
+                ctx.closePath();
+                
+                // 重置阴影效果，避免影响其他粒子
+                ctx.restore();
+            }
+            
+            // 触发爆炸效果
+            explode() {
+                this.isClickExplode = true;
+                this.explodeSpeed = Math.random() * 12 + 8; // 爆炸速度适配大尺寸
+                this.angle = Math.random() * Math.PI * 2;
+            }
+        }
+        
+        // 绘制五角星函数
+        function drawStar(x, y, outerRadius, innerRadius, points) {
+            ctx.beginPath();
+            const angle = Math.PI / points;
+            for (let i = 0; i < 2 * points; i++) {
+                const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                const xPos = x + Math.cos(i * angle - Math.PI / 2) * radius;
+                const yPos = y + Math.sin(i * angle - Math.PI / 2) * radius;
+                if (i === 0) {
+                    ctx.moveTo(xPos, yPos);
+                } else {
+                    ctx.lineTo(xPos, yPos);
+                }
+            }
+            ctx.closePath();
+        }
+        
+        // 分离存储不同类型粒子（实现层级绘制）
+        const trunkParticles = [];    // 树干粒子（后置）
+        const crownParticles = [];    // 树冠粒子（前置）
+        let starParticle = null;      // 星星粒子（最前置）
+        
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2 - 150; // 整体上移更多，适配全屏
+        const treeHeight = 400; // 圣诞树总高度（翻倍至400px）
+        const treeWidth = 360;  // 圣诞树底部宽度（翻倍至360px）
+        
+        // 生成三角形圣诞树形状的粒子（分层存储）
+        function createChristmasTree() {
+            // 清空所有粒子
+            trunkParticles.length = 0;
+            crownParticles.length = 0;
+            starParticle = null;
+            
+            // 1. 先创建树干粒子（后置）
+            const trunkWidth = 60; // 树干宽度翻倍
+            const trunkHeight = 120; // 树干高度翻倍
+            for (let i = 0; i < 150; i++) { // 更多粒子，树干更明显
+                const x = centerX + (Math.random() - 0.5) * trunkWidth;
+                const y = centerY + treeHeight + (Math.random() - 0.5) * trunkHeight;
+                trunkParticles.push(new Particle(x, y, false, true));
+            }
+            
+            // 2. 再创建树冠粒子（前置）
+            const layers = 35; // 分层数增加，保证粒子密度
+            for (let layer = 0; layer < layers; layer++) {
+                // 每层的Y坐标：从树顶向下分布
+                const y = centerY + (layer / layers) * treeHeight;
+                // 每层的宽度：三角形渐变（底部宽，顶部窄）
+                const layerWidth = (layer / layers) * treeWidth;
+                
+                // 每层生成粒子数量，宽度越大粒子越多
+                const particleCount = Math.floor(layerWidth / 2.5); // 粒子更密
+                for (let i = 0; i < particleCount; i++) {
+                    // 左右对称分布，形成规整三角形
+                    const offsetX = (i - particleCount / 2) * 2.5;
+                    const x = centerX + offsetX;
+                    crownParticles.push(new Particle(x, y));
+                }
+            }
+            
+            // 3. 最后创建树顶星星（最前置）
+            starParticle = new Particle(centerX, centerY - 20, true);
+        }
+        
+        // 动画循环（按层级绘制：树干→树冠→星星）
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 第一步：绘制树干粒子（最先绘制，在最底层）
+            trunkParticles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+            
+            // 第二步：绘制树冠粒子（中间层，覆盖树干）
+            crownParticles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+            
+            // 第三步：绘制星星粒子（最后绘制，在最顶层）
+            if (starParticle) {
+                starParticle.update();
+                starParticle.draw();
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // 点击交互（同时触发所有粒子爆炸）
+        function handleClick() {
+            // 隐藏提示文字
+            hint.classList.add('hide');
+            
+            // 显示圣诞祝福
+            textContainer.classList.add('show');
+            
+            // 触发所有粒子爆炸
+            trunkParticles.forEach(particle => particle.explode());
+            crownParticles.forEach(particle => particle.explode());
+            if (starParticle) starParticle.explode();
+            
+            // 移除点击事件（只触发一次）
+            document.removeEventListener('click', handleClick);
+            document.removeEventListener('touchstart', handleClick);
+        }
+        
+        // 初始化
+        createChristmasTree();
+        animate();
+        
+        // 绑定点击/触摸事件（适配手机）
+        document.addEventListener('click', handleClick);
+        document.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleClick();
+        }, { passive: false });
+    </script>
+</body>
+</html>
